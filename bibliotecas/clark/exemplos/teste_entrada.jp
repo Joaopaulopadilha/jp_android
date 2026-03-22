@@ -1,0 +1,126 @@
+# teste_entrada.jp
+# Teste da biblioteca Clark - campo de entrada com botao enviar
+
+importar clark
+importar tempo
+
+html = """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    .card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 40px;
+      width: 380px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    h1 {
+      color: #fff;
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .sub {
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    input {
+      width: 100%;
+      padding: 14px 18px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.3s;
+      margin-bottom: 16px;
+    }
+    input::placeholder { color: rgba(255,255,255,0.3); }
+    input:focus { border-color: #7c5cfc; }
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #7c5cfc, #5a3fd6);
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.3s;
+      box-shadow: 0 4px 20px rgba(124,92,252,0.3);
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(124,92,252,0.5);
+    }
+    button:active { transform: translateY(0); }
+    .resultado {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 12px;
+      background: rgba(124,92,252,0.12);
+      border: 1px solid rgba(124,92,252,0.25);
+      color: #c4b5fd;
+      font-size: 14px;
+      text-align: center;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+    .resultado.vazio { opacity: 0.4; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Qual seu nome?</h1>
+    <div class="sub">Digite abaixo e clique em enviar</div>
+    <input type="text" id="nome" placeholder="Seu nome aqui..." />
+    <button onclick="enviar(document.getElementById('nome').value)">Enviar</button>
+    <div class="resultado vazio" id="resultado">Aguardando...</div>
+  </div>
+
+  <script>
+    document.getElementById('nome').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') enviar(document.getElementById('nome').value);
+    });
+  </script>
+</body>
+</html>
+"""
+
+janela = clark_criar("Entrada", 450, 420)
+clark_html(janela, html)
+clark_bind(janela, "enviar")
+
+enquanto clark_ativo(janela):
+    tm_sleep(30)
+    evento = clark_evento(janela)
+
+    se evento == "enviar":
+        nome = clark_valor_js(janela)
+        saida("Nome recebido: " + nome)
+        clark_js(janela, "document.getElementById('resultado').className = 'resultado';")
+        clark_js(janela, "document.getElementById('resultado').innerText = 'Ola, " + nome + "! Bem-vindo!';")
+
+saida("Janela fechada!")

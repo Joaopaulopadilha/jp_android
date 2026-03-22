@@ -1,0 +1,30 @@
+# teste_clark.jp
+# Teste basico da biblioteca Clark - apenas um botao
+
+importar clark
+
+html = """
+<html>
+<body style="background:#222;color:white;font-family:Arial;text-align:center;padding-top:80px;">
+  <h1 id="msg">Ola Clark!</h1>
+  <br>
+  <button onclick="clicou()" style="padding:15px 30px;font-size:18px;">Clique aqui</button>
+</body>
+</html>
+"""
+
+janela = clark_criar("Teste", 400, 300)
+clark_html(janela, html)
+clark_bind(janela, "clicou")
+
+contador = 0
+
+enquanto clark_ativo(janela):
+    evento = clark_evento(janela)
+    
+    se evento == "clicou":
+        contador = contador + 1
+        clark_js(janela, "document.getElementById('msg').innerText = 'Cliques: " + contador + "'")
+        saida("clicou")
+
+saida("Fim!")

@@ -1,0 +1,86 @@
+# teste_tempo.jp
+# Teste completo da biblioteca de tempo para JPLang
+
+importar tempo
+
+saidal_verde("=== Teste Biblioteca Tempo ===")
+saida("")
+
+# --- Componentes de data ---
+saidal_verde("tm_dia: ")
+v = tm_dia()
+saida(v)
+
+saidal_verde("tm_mes: ")
+v = tm_mes()
+saida(v)
+
+saidal_verde("tm_ano: ")
+v = tm_ano()
+saida(v)
+
+# --- Componentes de hora ---
+saidal_verde("tm_hora: ")
+v = tm_hora()
+saida(v)
+
+saidal_verde("tm_minuto: ")
+v = tm_minuto()
+saida(v)
+
+saidal_verde("tm_segundo: ")
+v = tm_segundo()
+saida(v)
+
+# --- Dia da semana e do ano ---
+saidal_verde("tm_dia_semana (0=dom, 6=sab): ")
+v = tm_dia_semana()
+saida(v)
+
+saidal_verde("tm_dia_ano: ")
+v = tm_dia_ano()
+saida(v)
+
+# --- Timestamp ---
+saidal_verde("tm_timestamp: ")
+v = tm_timestamp()
+saida(v)
+
+# --- Formatos numéricos ---
+saidal_verde("tm_data_num (DDMMAAAA): ")
+v = tm_data_num()
+saida(v)
+
+saidal_verde("tm_hora_num (HHMMSS): ")
+v = tm_hora_num()
+saida(v)
+
+# --- Formatos texto ---
+saidal_verde("tm_data_str: ")
+v = tm_data_str()
+saida(v)
+
+saidal_verde("tm_hora_str: ")
+v = tm_hora_str()
+saida(v)
+
+saidal_verde("tm_completo: ")
+v = tm_completo()
+saida(v)
+
+# --- Sleep ---
+saidal_verde("tm_sleep(500ms)... ")
+tm_sleep(500)
+saida("ok")
+
+# --- Cronômetro ---
+saidal_verde("tm_cronometro: ")
+tm_cronometro_iniciar()
+tm_sleep(200)
+v = tm_cronometro_parar()
+saidal(v)
+saida("ms")
+
+saida("")
+saidal_verde("=== Fim ===")
+saida("")

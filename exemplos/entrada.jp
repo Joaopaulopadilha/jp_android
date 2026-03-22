@@ -1,0 +1,5 @@
+
+
+nome = entrada("digite seu nome:")
+saida(nome)
+

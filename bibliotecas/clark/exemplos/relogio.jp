@@ -1,0 +1,112 @@
+importar clark
+importar tempo
+
+# Definição do HTML com CSS embutido e JavaScript para o relógio
+html = """
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Relógio</title>
+  <style>
+    /* Reset básico */
+    body, html {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-top: 32px; /* Espaço para a barra customizada do Clark */
+      overflow: hidden; /* Remove barra de rolagem */
+      box-sizing: border-box;
+    }
+    
+    /* Container do Relógio */
+    .relogio-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 40px 60px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Hora */
+    #hora {
+      font-size: 72px;
+      font-weight: bold;
+      color: #ffffff;
+      text-align: center;
+      margin: 0;
+      letter-spacing: 2px;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Data */
+    #data {
+      font-size: 20px;
+      color: rgba(255, 255, 255, 0.7);
+      text-align: center;
+      margin-top: 10px;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="relogio-container">
+    <h1 id="hora">00:00:00</h1>
+    <div id="data">Segunda-feira, 1 de Janeiro</div>
+  </div>
+  
+  <script>
+    function atualizarRelogio() {
+      const agora = new Date();
+      
+      // Formatar hora
+      const horas = String(agora.getHours()).padStart(2, '0');
+      const minutos = String(agora.getMinutes()).padStart(2, '0');
+      const segundos = String(agora.getSeconds()).padStart(2, '0');
+      const horaFormatada = horas + ':' + minutos + ':' + segundos;
+      
+      // Formatar data
+      const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+      const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      
+      const diaSemana = dias[agora.getDay()];
+      const diaMes = agora.getDate();
+      const mes = meses[agora.getMonth()];
+      const dataFormatada = diaSemana + ', ' + diaMes + ' de ' + mes;
+      
+      // Atualizar no HTML
+      document.getElementById('hora').innerText = horaFormatada;
+      document.getElementById('data').innerText = dataFormatada;
+    }
+    
+    // Atualiza a cada segundo
+    setInterval(atualizarRelogio, 1000);
+    
+    // Chamada inicial
+    atualizarRelogio();
+  </script>
+</body>
+</html>
+"""
+
+# 1. Criar a janela
+janela = clark_criar("Relógio", 400, 250)
+
+# 2. Carregar o HTML na janela
+clark_html(janela, html)
+
+# 3. Remover barra nativa e injetar barra customizada com controles
+clark_sem_borda(janela)
+
+# Loop Principal da Aplicação
+# A lógica do relógio fica no JavaScript, o loop apenas mantém a janela aberta
+enquanto clark_ativo(janela):
+    # Obrigatório: pausar a execução para não sobrecarregar o processador
+    tm_sleep(30)
+
+saida("Relógio encerrado!")

@@ -1,0 +1,219 @@
+html = """<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+* \{ margin:0; padding:0; box-sizing:border-box \}
+body \{ background:#0d1117; color:#c9d1d9; font-family:'Segoe UI',sans-serif;
+  display:flex; flex-direction:column; height:100vh; overflow:hidden \}
+
+.header \{ background:#161b22; padding:12px 16px; display:flex;
+  align-items:center; justify-content:space-between; border-bottom:1px solid #30363d;
+  min-height:52px; flex-shrink:0 \}
+.header h1 \{ font-size:18px; color:#58a6ff \}
+.header .acoes \{ display:flex; gap:8px \}
+.header button \{ background:#21262d; color:#c9d1d9; border:1px solid #30363d;
+  padding:8px 14px; border-radius:6px; font-size:14px; cursor:pointer \}
+.header button:active \{ background:#30363d \}
+.header button.novo \{ background:#238636; border-color:#2ea043; color:#fff \}
+.header button.voltar \{ background:#1f6feb; border-color:#388bfd; color:#fff \}
+.header button.salvar \{ background:#238636; border-color:#2ea043; color:#fff \}
+.header button.apagar \{ background:#da3633; border-color:#f85149; color:#fff \}
+
+.tela \{ flex:1; display:flex; flex-direction:column; overflow:hidden \}
+.escondido \{ display:none !important \}
+
+.lista \{ flex:1; overflow-y:auto; padding:8px \}
+.nota-item \{ background:#161b22; border:1px solid #30363d; border-radius:8px;
+  padding:14px 16px; margin-bottom:8px; cursor:pointer; transition:border-color 0.2s \}
+.nota-item:active \{ border-color:#58a6ff \}
+.nota-item .titulo \{ font-size:16px; color:#c9d1d9; margin-bottom:4px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis \}
+.nota-item .preview \{ font-size:13px; color:#8b949e; 
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis \}
+.nota-item .data \{ font-size:11px; color:#6e7681; margin-top:6px \}
+.vazio \{ text-align:center; color:#8b949e; padding:40px; font-size:16px \}
+
+#nome-input \{ background:#0d1117; color:#c9d1d9; border:1px solid #30363d;
+  padding:10px 16px; font-size:16px; border-bottom:none; outline:none;
+  font-family:'Segoe UI',sans-serif; flex-shrink:0 \}
+#nome-input:focus \{ border-color:#58a6ff \}
+#editor \{ flex:1; background:#0d1117; color:#c9d1d9; border:none;
+  padding:16px; font-size:16px; font-family:'Cascadia Code','Fira Code',monospace;
+  line-height:1.6; resize:none; outline:none \}
+#contador \{ background:#161b22; padding:6px 16px; font-size:12px;
+  color:#8b949e; border-top:1px solid #30363d; flex-shrink:0 \}
+
+.confirmar-overlay \{ position:fixed; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.7); display:flex; align-items:center;
+  justify-content:center; z-index:100 \}
+.confirmar-box \{ background:#161b22; border:1px solid #30363d; border-radius:12px;
+  padding:24px; max-width:300px; text-align:center \}
+.confirmar-box p \{ margin-bottom:16px; font-size:16px \}
+.confirmar-box .btns \{ display:flex; gap:12px; justify-content:center \}
+.confirmar-box button \{ padding:10px 20px; border-radius:6px; border:none;
+  font-size:15px; cursor:pointer; color:#fff \}
+.confirmar-box .sim \{ background:#da3633 \}
+.confirmar-box .nao \{ background:#21262d; color:#c9d1d9; border:1px solid #30363d \}
+</style>
+</head>
+<body>
+
+<!-- TELA LISTA -->
+<div id="tela-lista" class="tela">
+  <div class="header">
+    <h1>Notas</h1>
+    <div class="acoes">
+      <button class="novo" onclick="novaNota()">+ Nova</button>
+    </div>
+  </div>
+  <div class="lista" id="lista-notas"></div>
+</div>
+
+<!-- TELA EDITOR -->
+<div id="tela-editor" class="tela escondido">
+  <div class="header">
+    <button class="voltar" onclick="voltarLista()">Voltar</button>
+    <div class="acoes">
+      <button class="apagar" onclick="confirmarApagar()">Apagar</button>
+      <button class="salvar" onclick="salvarNota()">Salvar</button>
+    </div>
+  </div>
+  <input id="nome-input" type="text" placeholder="Titulo da nota...">
+  <textarea id="editor" placeholder="Digite aqui..." oninput="atualizarContador()"></textarea>
+  <div id="contador">0 caracteres | 0 linhas</div>
+</div>
+
+<!-- OVERLAY CONFIRMAR -->
+<div id="overlay-apagar" class="confirmar-overlay escondido">
+  <div class="confirmar-box">
+    <p>Apagar esta nota?</p>
+    <div class="btns">
+      <button class="nao" onclick="fecharOverlay()">Cancelar</button>
+      <button class="sim" onclick="apagarNota()">Apagar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var notas = [];
+var notaAtual = -1;
+
+function carregarNotas() \{
+  try \{
+    var dados = localStorage.getItem('jplang_notas');
+    if (dados) notas = JSON.parse(dados);
+  \} catch(e) \{ notas = []; \}
+  renderLista();
+\}
+
+function salvarStorage() \{
+  localStorage.setItem('jplang_notas', JSON.stringify(notas));
+\}
+
+function renderLista() \{
+  var el = document.getElementById('lista-notas');
+  if (notas.length === 0) \{
+    el.innerHTML = '<div class="vazio">Nenhuma nota ainda.<br>Toque em + Nova para criar.</div>';
+    return;
+  \}
+  var h = '';
+  for (var i = notas.length - 1; i >= 0; i--) \{
+    var n = notas[i];
+    var preview = n.texto.substring(0, 80).replace(/\\n/g, ' ');
+    if (!preview) preview = '(vazio)';
+    h += '<div class="nota-item" onclick="abrirNota(' + i + ')">';
+    h += '<div class="titulo">' + (n.titulo || 'Sem titulo') + '</div>';
+    h += '<div class="preview">' + preview + '</div>';
+    h += '<div class="data">' + n.data + '</div>';
+    h += '</div>';
+  \}
+  el.innerHTML = h;
+\}
+
+function novaNota() \{
+  notaAtual = -1;
+  document.getElementById('nome-input').value = '';
+  document.getElementById('editor').value = '';
+  atualizarContador();
+  mostrarEditor();
+\}
+
+function abrirNota(idx) \{
+  notaAtual = idx;
+  document.getElementById('nome-input').value = notas[idx].titulo;
+  document.getElementById('editor').value = notas[idx].texto;
+  atualizarContador();
+  mostrarEditor();
+\}
+
+function salvarNota() \{
+  var titulo = document.getElementById('nome-input').value || 'Sem titulo';
+  var texto = document.getElementById('editor').value;
+  var agora = new Date();
+  var data = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
+
+  if (notaAtual === -1) \{
+    notas.push(\{ titulo: titulo, texto: texto, data: data \});
+    notaAtual = notas.length - 1;
+  \} else \{
+    notas[notaAtual].titulo = titulo;
+    notas[notaAtual].texto = texto;
+    notas[notaAtual].data = data;
+  \}
+  salvarStorage();
+  jp.evento('salvar', titulo);
+  jp.log('Nota salva: ' + titulo);
+\}
+
+function confirmarApagar() \{
+  document.getElementById('overlay-apagar').classList.remove('escondido');
+\}
+
+function fecharOverlay() \{
+  document.getElementById('overlay-apagar').classList.add('escondido');
+\}
+
+function apagarNota() \{
+  fecharOverlay();
+  if (notaAtual >= 0 && notaAtual < notas.length) \{
+    var titulo = notas[notaAtual].titulo;
+    notas.splice(notaAtual, 1);
+    salvarStorage();
+    jp.evento('apagar', titulo);
+    jp.log('Nota apagada: ' + titulo);
+  \}
+  voltarLista();
+\}
+
+function voltarLista() \{
+  document.getElementById('tela-lista').classList.remove('escondido');
+  document.getElementById('tela-editor').classList.add('escondido');
+  renderLista();
+\}
+
+function mostrarEditor() \{
+  document.getElementById('tela-lista').classList.add('escondido');
+  document.getElementById('tela-editor').classList.remove('escondido');
+\}
+
+function atualizarContador() \{
+  var t = document.getElementById('editor').value;
+  var chars = t.length;
+  var linhas = t.split('\\n').length;
+  document.getElementById('contador').innerText = chars + ' caracteres | ' + linhas + ' linhas';
+\}
+
+carregarNotas();
+</script>
+</body>
+</html>"""
+
+graf_html(html)
+
+funcao graf_evento(evento, dado):
+    se evento == "salvar":
+        retorna "salvo"
+    ou_se evento == "apagar":
+        retorna "apagado"
+    senao:
+        retorna "ok"

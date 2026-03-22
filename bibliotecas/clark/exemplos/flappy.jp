@@ -1,0 +1,349 @@
+# flappy.jp
+# Jogo Flappy Bird desktop usando a biblioteca Clark
+
+importar clark
+importar tempo
+
+html = """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flappy Bird</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      height: 100vh;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <script>
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var W, H;
+
+    function redimensionar() {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W;
+      canvas.height = H;
+    }
+    redimensionar();
+    window.addEventListener('resize', redimensionar);
+
+    var GRAVIDADE = 0.18;
+    var PULO = -4.5;
+    var VEL_CANO = 1.8;
+    var ABERTURA = 190;
+    var LARG_CANO = 56;
+    var CHAO_H = 80;
+    var FREQ_CANO = 150;
+
+    var passaro, canos, pontos, melhor, estado, frame, chaoX;
+    melhor = 0;
+
+    function resetar() {
+      passaro = { x: 80, y: 250, vy: 0, angulo: 0, asa: 0 };
+      canos = [];
+      pontos = 0;
+      frame = 0;
+      chaoX = 0;
+    }
+
+    resetar();
+    estado = 'menu';
+
+    // ===================== DESENHO =====================
+
+    function desenharFundo() {
+      var g = ctx.createLinearGradient(0, 0, 0, H - CHAO_H);
+      g.addColorStop(0, '#4ec5f1');
+      g.addColorStop(0.6, '#89d9f5');
+      g.addColorStop(1, '#c8edb0');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H - CHAO_H);
+
+      // Nuvens simples
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      var nuvens = [[50,80],[200,50],[320,100],[130,140]];
+      for (var i = 0; i < nuvens.length; i++) {
+        var nx = (nuvens[i][0] + frame * 0.15) % (W + 60) - 30;
+        ctx.beginPath();
+        ctx.ellipse(nx, nuvens[i][1], 40, 16, 0, 0, Math.PI * 2);
+        ctx.ellipse(nx - 20, nuvens[i][1] + 5, 25, 12, 0, 0, Math.PI * 2);
+        ctx.ellipse(nx + 22, nuvens[i][1] + 3, 28, 13, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function desenharChao() {
+      ctx.fillStyle = '#ded895';
+      ctx.fillRect(0, H - CHAO_H, W, CHAO_H);
+      ctx.fillStyle = '#c9b76a';
+      ctx.fillRect(0, H - CHAO_H, W, 5);
+      ctx.strokeStyle = '#c9b76a';
+      ctx.lineWidth = 1;
+      for (var i = -2; i < W / 18 + 2; i++) {
+        var x = i * 18 + (chaoX % 18);
+        ctx.beginPath();
+        ctx.moveTo(x, H - CHAO_H + 10);
+        ctx.lineTo(x + 9, H - CHAO_H + 22);
+        ctx.stroke();
+      }
+    }
+
+    function desenharCano(x, yTopo, yBase) {
+      // Cima
+      ctx.fillStyle = '#73bf2e';
+      ctx.fillRect(x + 3, 0, LARG_CANO - 6, yTopo);
+      ctx.fillStyle = '#5aa51e';
+      ctx.fillRect(x + 3, 0, 5, yTopo);
+      ctx.fillStyle = '#9bd44e';
+      ctx.fillRect(x + LARG_CANO - 12, 0, 4, yTopo);
+      // Boca cima
+      ctx.fillStyle = '#73bf2e';
+      ctx.fillRect(x - 2, yTopo - 26, LARG_CANO + 4, 26);
+      ctx.strokeStyle = '#4a8a1a';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 2, yTopo - 26, LARG_CANO + 4, 26);
+
+      // Baixo
+      ctx.fillStyle = '#73bf2e';
+      ctx.fillRect(x + 3, yBase, LARG_CANO - 6, H - CHAO_H - yBase);
+      ctx.fillStyle = '#5aa51e';
+      ctx.fillRect(x + 3, yBase, 5, H - CHAO_H - yBase);
+      ctx.fillStyle = '#9bd44e';
+      ctx.fillRect(x + LARG_CANO - 12, yBase, 4, H - CHAO_H - yBase);
+      // Boca baixo
+      ctx.fillStyle = '#73bf2e';
+      ctx.fillRect(x - 2, yBase, LARG_CANO + 4, 26);
+      ctx.strokeStyle = '#4a8a1a';
+      ctx.strokeRect(x - 2, yBase, LARG_CANO + 4, 26);
+    }
+
+    function desenharPassaro(x, y, angulo, asaFrame) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angulo * Math.PI / 180);
+
+      // Sombra
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.beginPath();
+      ctx.ellipse(2, 3, 18, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Corpo
+      ctx.fillStyle = '#f5c842';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 17, 13, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#d4a012';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Barriga
+      ctx.fillStyle = '#fce28a';
+      ctx.beginPath();
+      ctx.ellipse(2, 3, 11, 7, 0, 0, Math.PI);
+      ctx.fill();
+
+      // Asa
+      var ay = Math.sin(asaFrame) * 5;
+      ctx.fillStyle = '#e8d55a';
+      ctx.strokeStyle = '#c9a820';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(-5, ay - 3, 11, 6, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Olho branco
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(9, -5, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      // Pupila
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(11, -4, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Brilho olho
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(12, -6, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bico
+      ctx.fillStyle = '#e85d04';
+      ctx.beginPath();
+      ctx.moveTo(14, 0);
+      ctx.lineTo(25, 3);
+      ctx.lineTo(14, 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#c24800';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function desenharTexto(texto, x, y, tamanho, cor) {
+      ctx.fillStyle = cor || '#fff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 4;
+      ctx.font = 'bold ' + tamanho + 'px Arial';
+      ctx.textAlign = 'center';
+      ctx.strokeText(texto, x, y);
+      ctx.fillText(texto, x, y);
+    }
+
+    // ===================== LOGICA =====================
+
+    function pular() {
+      if (estado === 'menu') {
+        estado = 'jogando';
+        passaro.y = 250;
+        passaro.vy = PULO;
+      } else if (estado === 'jogando') {
+        passaro.vy = PULO;
+      } else if (estado === 'morto') {
+        resetar();
+        estado = 'menu';
+      }
+    }
+
+    function atualizar() {
+      frame++;
+      chaoX -= (estado === 'jogando') ? VEL_CANO : 1;
+
+      if (estado === 'menu') {
+        // Passarinho flutua suavemente, sem gravidade
+        passaro.y = 250 + Math.sin(frame * 0.04) * 20;
+        passaro.angulo = Math.sin(frame * 0.04) * 5;
+        passaro.asa += 0.12;
+        return;
+      }
+
+      if (estado === 'morto') return;
+
+      // === JOGANDO ===
+      passaro.vy += GRAVIDADE;
+      passaro.y += passaro.vy;
+      passaro.asa += 0.25;
+
+      if (passaro.vy < -1) passaro.angulo = -25;
+      else if (passaro.vy < 3) passaro.angulo = 0;
+      else passaro.angulo = Math.min(70, passaro.vy * 5);
+
+      // Teto
+      if (passaro.y < 14) { passaro.y = 14; passaro.vy = 0; }
+
+      // Chao
+      if (passaro.y + 13 >= H - CHAO_H) {
+        passaro.y = H - CHAO_H - 13;
+        morrer();
+        return;
+      }
+
+      // Gerar canos
+      if (frame % FREQ_CANO === 0) {
+        var minY = 70;
+        var maxY = H - CHAO_H - ABERTURA - 70;
+        var yT = Math.floor(Math.random() * (maxY - minY)) + minY;
+        canos.push({ x: W + 10, yTopo: yT, yBase: yT + ABERTURA, pontuou: false });
+      }
+
+      // Mover e checar canos
+      for (var i = canos.length - 1; i >= 0; i--) {
+        canos[i].x -= VEL_CANO;
+
+        if (!canos[i].pontuou && canos[i].x + LARG_CANO < passaro.x) {
+          canos[i].pontuou = true;
+          pontos++;
+        }
+
+        // Colisao
+        if (passaro.x + 14 > canos[i].x && passaro.x - 14 < canos[i].x + LARG_CANO) {
+          if (passaro.y - 11 < canos[i].yTopo || passaro.y + 11 > canos[i].yBase) {
+            morrer();
+            return;
+          }
+        }
+
+        if (canos[i].x + LARG_CANO < -10) canos.splice(i, 1);
+      }
+    }
+
+    function morrer() {
+      estado = 'morto';
+      if (pontos > melhor) melhor = pontos;
+    }
+
+    // ===================== RENDER =====================
+
+    function desenhar() {
+      desenharFundo();
+      for (var i = 0; i < canos.length; i++) {
+        desenharCano(canos[i].x, canos[i].yTopo, canos[i].yBase);
+      }
+      desenharChao();
+      desenharPassaro(passaro.x, passaro.y, passaro.angulo, passaro.asa);
+
+      if (estado === 'menu') {
+        desenharTexto('Flappy Bird', W / 2, 150, 46);
+        desenharTexto('Clique ou Espaco para jogar', W / 2, H / 2 + 80, 18);
+        if (melhor > 0) desenharTexto('Recorde: ' + melhor, W / 2, H / 2 + 115, 16);
+      } else if (estado === 'jogando') {
+        desenharTexto(String(pontos), W / 2, 60, 52);
+      } else if (estado === 'morto') {
+        desenharTexto(String(pontos), W / 2, 60, 52);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(0, 0, W, H);
+        desenharTexto('Game Over', W / 2, H / 2 - 50, 44);
+        desenharTexto('Pontos: ' + pontos, W / 2, H / 2, 28);
+        desenharTexto('Recorde: ' + melhor, W / 2, H / 2 + 40, 20);
+        desenharTexto('Clique para recomecar', W / 2, H / 2 + 85, 17);
+      }
+    }
+
+    function loop() {
+      atualizar();
+      desenhar();
+      requestAnimationFrame(loop);
+    }
+
+    // ===================== EVENTOS =====================
+    document.addEventListener('keydown', function(e) {
+      if (e.code === 'Space' || e.key === 'ArrowUp') { e.preventDefault(); pular(); }
+    });
+    canvas.addEventListener('click', pular);
+
+    loop();
+  </script>
+</body>
+</html>
+"""
+
+janela = clark_criar("Flappy Bird", 600, 600)
+clark_html(janela, html)
+clark_sem_borda(janela)
+
+enquanto clark_ativo(janela):
+    tm_sleep(30)
+
+saida("Jogo fechado!")

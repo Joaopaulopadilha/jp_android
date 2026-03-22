@@ -1,0 +1,17 @@
+{
+    "tipo": "dinamico",
+    "funcoes": [
+        { "nome": "clark_criar",     "retorno": "inteiro", "params": ["texto", "inteiro", "inteiro"] },
+        { "nome": "clark_html",      "retorno": "inteiro", "params": ["inteiro", "texto"] },
+        { "nome": "clark_arquivo",   "retorno": "inteiro", "params": ["inteiro", "texto"] },
+        { "nome": "clark_js",        "retorno": "inteiro", "params": ["inteiro", "texto"] },
+        { "nome": "clark_bind",      "retorno": "inteiro", "params": ["inteiro", "texto"] },
+        { "nome": "clark_ativo",     "retorno": "inteiro", "params": ["inteiro"] },
+        { "nome": "clark_evento",    "retorno": "texto",   "params": ["inteiro"] },
+        { "nome": "clark_valor_js",  "retorno": "texto",   "params": ["inteiro"] },
+        { "nome": "clark_titulo",    "retorno": "inteiro", "params": ["inteiro", "texto"] },
+        { "nome": "clark_tamanho",   "retorno": "inteiro", "params": ["inteiro", "inteiro", "inteiro"] },
+        { "nome": "clark_sem_borda", "retorno": "inteiro", "params": ["inteiro"] },
+        { "nome": "clark_fechar",    "retorno": "inteiro", "params": ["inteiro"] }
+    ]
+}

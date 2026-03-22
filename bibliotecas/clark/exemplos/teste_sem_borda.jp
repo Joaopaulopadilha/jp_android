@@ -1,0 +1,76 @@
+# teste_sem_borda.jp
+# Teste da biblioteca Clark - janela sem borda com barra de titulo customizada
+
+importar clark
+importar tempo
+
+html = """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Meu App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      height: 100vh;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    h1 { font-size: 28px; margin-bottom: 12px; }
+    p { opacity: 0.6; font-size: 14px; margin-bottom: 30px; }
+    .btn {
+      padding: 12px 32px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #7c5cfc, #5a3fd6);
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.3s;
+      box-shadow: 0 4px 20px rgba(124,92,252,0.3);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(124,92,252,0.5);
+    }
+    #msg {
+      margin-top: 20px;
+      font-size: 16px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #msg.visivel { opacity: 1; }
+  </style>
+</head>
+<body>
+  <h1>Janela Sem Borda</h1>
+  <p>Com barra de titulo customizada em HTML</p>
+  <button class="btn" onclick="clicar()">Clique aqui</button>
+  <div id="msg"></div>
+</body>
+</html>
+"""
+
+janela = clark_criar("Meu App", 600, 400)
+clark_html(janela, html)
+clark_sem_borda(janela)
+clark_bind(janela, "clicar")
+
+contador = 0
+
+enquanto clark_ativo(janela):
+    tm_sleep(30)
+    evento = clark_evento(janela)
+
+    se evento == "clicar":
+        contador = contador + 1
+        clark_js(janela, "var m = document.getElementById('msg'); m.className = 'visivel'; m.innerText = 'Voce clicou " + contador + " vezes!';")
+
+saida("Fim!")

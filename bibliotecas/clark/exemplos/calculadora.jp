@@ -1,0 +1,245 @@
+# calculadora.jp
+# Calculadora desktop com interface HTML usando a biblioteca Clark
+
+importar clark
+importar tempo
+
+html = """
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calculadora</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      height: 100vh;
+      background: #1c1c1e;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .calc {
+      width: 100%;
+      max-width: 320px;
+      padding: 20px;
+    }
+    .visor {
+      background: #2c2c2e;
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      text-align: right;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .expressao {
+      color: rgba(255,255,255,0.4);
+      font-size: 16px;
+      min-height: 24px;
+      word-break: break-all;
+    }
+    .resultado {
+      color: #fff;
+      font-size: 42px;
+      font-weight: 300;
+      word-break: break-all;
+      transition: font-size 0.15s;
+    }
+    .resultado.pequeno { font-size: 28px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .btn {
+      height: 62px;
+      border: none;
+      border-radius: 14px;
+      font-size: 22px;
+      font-weight: 400;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.15s;
+      outline: none;
+    }
+    .btn:active { transform: scale(0.93); }
+    .num {
+      background: #3a3a3c;
+      color: #fff;
+    }
+    .num:hover { background: #48484a; }
+    .op {
+      background: #ff9f0a;
+      color: #fff;
+      font-size: 26px;
+      font-weight: 500;
+    }
+    .op:hover { background: #ffb340; }
+    .op.ativo { background: #fff; color: #ff9f0a; }
+    .func {
+      background: #636366;
+      color: #fff;
+    }
+    .func:hover { background: #7c7c80; }
+    .zero {
+      grid-column: span 2;
+      text-align: left;
+      padding-left: 26px;
+    }
+  </style>
+</head>
+<body>
+  <div class="calc">
+    <div class="visor">
+      <div class="expressao" id="expressao"></div>
+      <div class="resultado" id="resultado">0</div>
+    </div>
+    <div class="grid">
+      <button class="btn func" onclick="limpar()">C</button>
+      <button class="btn func" onclick="inverter()">+/-</button>
+      <button class="btn func" onclick="percentual()">%</button>
+      <button class="btn op" id="btn_div" onclick="operacao('/')">&divide;</button>
+
+      <button class="btn num" onclick="digito('7')">7</button>
+      <button class="btn num" onclick="digito('8')">8</button>
+      <button class="btn num" onclick="digito('9')">9</button>
+      <button class="btn op" id="btn_mul" onclick="operacao('*')">&times;</button>
+
+      <button class="btn num" onclick="digito('4')">4</button>
+      <button class="btn num" onclick="digito('5')">5</button>
+      <button class="btn num" onclick="digito('6')">6</button>
+      <button class="btn op" id="btn_sub" onclick="operacao('-')">&minus;</button>
+
+      <button class="btn num" onclick="digito('1')">1</button>
+      <button class="btn num" onclick="digito('2')">2</button>
+      <button class="btn num" onclick="digito('3')">3</button>
+      <button class="btn op" id="btn_add" onclick="operacao('+')">+</button>
+
+      <button class="btn num zero" onclick="digito('0')">0</button>
+      <button class="btn num" onclick="decimal()">.</button>
+      <button class="btn op" onclick="igual()">=</button>
+    </div>
+  </div>
+
+  <script>
+    var tela = '0';
+    var anterior = null;
+    var op = null;
+    var reiniciar = false;
+
+    function atualizar() {
+      var el = document.getElementById('resultado');
+      el.textContent = tela;
+      el.className = tela.length > 9 ? 'resultado pequeno' : 'resultado';
+
+      // Destaca operador ativo
+      ['btn_add','btn_sub','btn_mul','btn_div'].forEach(function(id) {
+        document.getElementById(id).classList.remove('ativo');
+      });
+      if (op && reiniciar) {
+        var mapa = {'+':'btn_add', '-':'btn_sub', '*':'btn_mul', '/':'btn_div'};
+        if (mapa[op]) document.getElementById(mapa[op]).classList.add('ativo');
+      }
+    }
+
+    function digito(d) {
+      if (reiniciar) { tela = ''; reiniciar = false; }
+      if (tela === '0' && d !== '.') tela = '';
+      tela += d;
+      atualizar();
+    }
+
+    function decimal() {
+      if (reiniciar) { tela = '0'; reiniciar = false; }
+      if (tela.indexOf('.') === -1) tela += '.';
+      atualizar();
+    }
+
+    function operacao(nova_op) {
+      if (op && !reiniciar) calcular();
+      anterior = parseFloat(tela);
+      op = nova_op;
+      reiniciar = true;
+      atualizar();
+    }
+
+    function calcular() {
+      if (anterior === null || !op) return;
+      var atual = parseFloat(tela);
+      var r = 0;
+      switch(op) {
+        case '+': r = anterior + atual; break;
+        case '-': r = anterior - atual; break;
+        case '*': r = anterior * atual; break;
+        case '/': r = atual !== 0 ? anterior / atual : 'Erro'; break;
+      }
+      if (typeof r === 'number') {
+        r = parseFloat(r.toPrecision(12));
+        tela = String(r);
+      } else {
+        tela = r;
+      }
+    }
+
+    function igual() {
+      var expr = (anterior !== null && op) ? anterior + ' ' + op + ' ' + tela : '';
+      calcular();
+      document.getElementById('expressao').textContent = expr;
+      op = null;
+      anterior = null;
+      reiniciar = true;
+      atualizar();
+    }
+
+    function limpar() {
+      tela = '0';
+      anterior = null;
+      op = null;
+      reiniciar = false;
+      document.getElementById('expressao').textContent = '';
+      atualizar();
+    }
+
+    function inverter() {
+      if (tela !== '0' && tela !== 'Erro') {
+        tela = String(-parseFloat(tela));
+        atualizar();
+      }
+    }
+
+    function percentual() {
+      tela = String(parseFloat(tela) / 100);
+      atualizar();
+    }
+
+    // Suporte a teclado
+    document.addEventListener('keydown', function(e) {
+      if (e.key >= '0' && e.key <= '9') digito(e.key);
+      else if (e.key === '.') decimal();
+      else if (e.key === '+') operacao('+');
+      else if (e.key === '-') operacao('-');
+      else if (e.key === '*') operacao('*');
+      else if (e.key === '/') { e.preventDefault(); operacao('/'); }
+      else if (e.key === 'Enter' || e.key === '=') igual();
+      else if (e.key === 'Escape') limpar();
+      else if (e.key === 'Backspace') {
+        if (!reiniciar && tela.length > 1) { tela = tela.slice(0, -1); atualizar(); }
+        else { tela = '0'; atualizar(); }
+      }
+    });
+  </script>
+</body>
+</html>
+"""
+
+janela = clark_criar("Calculadora", 360, 540)
+clark_html(janela, html)
+clark_sem_borda(janela)
+
+enquanto clark_ativo(janela):
+    tm_sleep(30)
+
+saida("Calculadora fechada!")

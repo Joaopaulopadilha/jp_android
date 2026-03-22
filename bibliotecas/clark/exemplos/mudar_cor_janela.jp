@@ -1,0 +1,94 @@
+importar clark
+importar tempo
+
+# Lista de cores (hexadecimais) para ciclar a cada clique
+cores = ["#1e90ff", "#ff6347", "#32cd32", "#ff4500", "#9370db", "#20b2aa"]
+indice = 0
+
+# Definição do HTML com CSS embutido
+html = """
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mudança de Cores</title>
+  <style>
+    /* Reset básico e centralização */
+    body, html {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: background-color 0.3s ease;
+      padding-top: 32px; /* Espaço para a barra customizada do Clark */
+      overflow: hidden; /* Remove barra de rolagem */
+      box-sizing: border-box;
+    }
+    
+    /* Estilo do Botão */
+    #botaoMagico {
+      padding: 15px 32px;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+      background-color: #1e90ff; /* Cor inicial */
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: background-color 0.3s ease, transform 0.1s ease;
+    }
+    
+    #botaoMagico:hover {
+      opacity: 0.9;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <!-- O botão chama a função mudarCores() ao ser clicado -->
+  <button id="botaoMagico" onclick="mudarCores()">Mudar Cor</button>
+</body>
+</html>
+"""
+
+# 1. Criar a janela
+janela = clark_criar("Mudança de Cores", 400, 300)
+
+# 2. Carregar o HTML na janela
+clark_html(janela, html)
+
+# 3. Remover barra nativa e injetar barra customizada com controles
+clark_sem_borda(janela)
+
+# 4. Registrar o evento (bind) para capturar o clique
+clark_bind(janela, "mudarCores")
+
+# Loop Principal da Aplicação
+enquanto clark_ativo(janela):
+    # Obrigatório: pausar a execução para não sobrecarregar o processador
+    tm_sleep(10)
+    
+    # Verificar se houve algum evento
+    evento = clark_evento(janela)
+    
+    # Processamento do Evento
+    se evento == "mudarCores":
+        # Selecionar a cor atual da lista
+        cor_escolhida = cores[indice]
+        
+        
+        # Atualizar o índice para a próxima iteração (loop na lista)
+        indice = indice + 1
+        se indice >= 6:
+            indice = 0
+            
+        # Gerar e executar o JavaScript para mudar o estilo
+        codigo_js = "document.body.style.backgroundColor = '" + cor_escolhida + "';"
+        codigo_js = codigo_js + "document.getElementById('botaoMagico').style.backgroundColor = '" + cor_escolhida + "';"
+        
+        clark_js(janela, codigo_js)
+
+saida("Aplicação encerrada!")

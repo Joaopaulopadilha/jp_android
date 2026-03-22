@@ -1,0 +1,125 @@
+# teste_texto.jp
+# Teste completo da biblioteca de manipulação de texto para JPLang
+
+importar texto
+
+saidal_verde("=== Teste Biblioteca Texto ===")
+saida("")
+
+# --- txt_upper ---
+saidal_verde("txt_upper: ")
+t = "hello world"
+r = txt_upper(t)
+saida(r)
+
+# --- txt_lower ---
+saidal_verde("txt_lower: ")
+t = "HELLO WORLD"
+r = txt_lower(t)
+saida(r)
+
+# --- txt_tamanho ---
+saidal_verde("txt_tamanho: ")
+t = "jplang"
+n = txt_tamanho(t)
+saida(n)
+
+# --- txt_contem ---
+saidal_verde("txt_contem (sim): ")
+t = "programar em portugues"
+b = txt_contem(t, "portugues")
+saida(b)
+
+saidal_verde("txt_contem (nao): ")
+b = txt_contem(t, "ingles")
+saida(b)
+
+# --- txt_trim ---
+saidal_verde("txt_trim: [")
+t = "   espacos   "
+r = txt_trim(t)
+saidal(r)
+saida("]")
+
+# --- txt_substituir ---
+saidal_verde("txt_substituir: ")
+t = "eu gosto de java"
+r = txt_substituir(t, "java", "jplang")
+saida(r)
+
+# --- txt_repetir ---
+saidal_verde("txt_repetir: ")
+r = txt_repetir("abc", 3)
+saida(r)
+
+# --- txt_inverter ---
+saidal_verde("txt_inverter: ")
+r = txt_inverter("jplang")
+saida(r)
+
+# --- txt_substr ---
+saidal_verde("txt_substr: ")
+t = "abcdefghij"
+r = txt_substr(t, 2, 5)
+saida(r)
+
+# --- txt_comeca_com ---
+saidal_verde("txt_comeca_com (sim): ")
+t = "jplang é top"
+b = txt_comeca_com(t, "jplang")
+saida(b)
+
+saidal_verde("txt_comeca_com (nao): ")
+b = txt_comeca_com(t, "python")
+saida(b)
+
+# --- txt_termina_com ---
+saidal_verde("txt_termina_com (sim): ")
+t = "arquivo.jp"
+b = txt_termina_com(t, ".jp")
+saida(b)
+
+saidal_verde("txt_termina_com (nao): ")
+b = txt_termina_com(t, ".py")
+saida(b)
+
+# --- txt_posicao ---
+saidal_verde("txt_posicao (achou): ")
+t = "abcdefghij"
+n = txt_posicao(t, "def")
+saida(n)
+
+saidal_verde("txt_posicao (nao achou): ")
+n = txt_posicao(t, "xyz")
+saida(n)
+
+# --- txt_char ---
+saidal_verde("txt_char: ")
+t = "jplang"
+r = txt_char(t, 0)
+saida(r)
+
+# --- txt_contar ---
+saidal_verde("txt_contar: ")
+t = "banana"
+n = txt_contar(t, "an")
+saida(n)
+
+# --- txt_dividir ---
+saidal_verde("txt_dividir parte 0: ")
+t = "um;dois;tres;quatro"
+r = txt_dividir(t, ";", 0)
+saida(r)
+
+saidal_verde("txt_dividir parte 2: ")
+r = txt_dividir(t, ";", 2)
+saida(r)
+
+# --- txt_dividir_contar ---
+saidal_verde("txt_dividir_contar: ")
+n = txt_dividir_contar(t, ";")
+saida(n)
+
+saida("")
+saidal_verde("=== Fim ===")
+saida("")

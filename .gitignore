@@ -1,0 +1,10 @@
+temp/
+output/
+debug/
+.vs/
+.vscode/
+*.user
+jdk/
+ndk/
+sdk/
+temp_apk/

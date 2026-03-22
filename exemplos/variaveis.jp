@@ -1,0 +1,10 @@
+#tipos automáticos
+nome = "João"
+idade = 20
+altura = 1.88
+ativo = verdadeiro 
+
+saida(nome)
+saida(idade)
+saida(altura)
+saida(ativo)
