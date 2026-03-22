@@ -53,6 +53,10 @@ struct SetupConfig {
     static constexpr const char* CMDLINE_TOOLS_URL =
         "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip";
     static constexpr const char* CMDLINE_TOOLS_ZIP = "commandlinetools.zip";
+
+    static constexpr const char* JDK_URL =
+        "https://aka.ms/download-jdk/microsoft-jdk-17-windows-x64.zip";
+    static constexpr const char* JDK_ZIP = "microsoft-jdk-17.zip";
 };
 
 // ============================================================================
@@ -335,37 +339,56 @@ static bool install_cmdline_tools(const std::string& base) {
 // INSTALAR COMPONENTES VIA SDKMANAGER
 // ============================================================================
 
+static bool accept_licenses(const std::string& base, const std::string& java_home) {
+    std::string sdk_dir = fs::path(base + "/sdk").make_preferred().string();
+
+#ifdef _WIN32
+    _putenv_s("JAVA_HOME", java_home.c_str());
+    std::string sdkmanager = sdk_dir + "\\cmdline-tools\\latest\\bin\\sdkmanager.bat";
+
+    // Criar script temporario que envia y repetidamente
+    std::string bat_path = base + "\\__accept_licenses.bat";
+    std::ofstream bat(bat_path);
+    bat << "@echo off\n";
+    bat << "for /L %%i in (1,1,20) do echo y\n";
+    bat.close();
+
+    std::string cmd = bat_path + " | " + sdkmanager + " --sdk_root=" + sdk_dir + " --licenses";
+#else
+    setenv("JAVA_HOME", java_home.c_str(), 1);
+    std::string sdkmanager = sdk_dir + "/cmdline-tools/latest/bin/sdkmanager";
+    std::string cmd = "yes | " + sdkmanager + " --sdk_root=" + sdk_dir + " --licenses";
+#endif
+
+    print_info("Aceitando licencas do Android SDK...");
+    run_cmd(cmd);
+
+#ifdef _WIN32
+    fs::remove(bat_path);
+#endif
+    return true;
+}
+
 static bool install_sdk_component(const std::string& base, const std::string& java_home,
                                    const std::string& component) {
     print_info("Instalando " + component + "...");
 
-    std::string sdk_dir = base + "/sdk";
+    std::string sdk_dir = fs::path(base + "/sdk").make_preferred().string();
 
 #ifdef _WIN32
-    std::string sdkmanager = sdk_dir + "/cmdline-tools/latest/bin/sdkmanager.bat";
+    _putenv_s("JAVA_HOME", java_home.c_str());
+    std::string sdkmanager = sdk_dir + "\\cmdline-tools\\latest\\bin\\sdkmanager.bat";
 #else
+    setenv("JAVA_HOME", java_home.c_str(), 1);
     std::string sdkmanager = sdk_dir + "/cmdline-tools/latest/bin/sdkmanager";
 #endif
 
     if (!fs::exists(sdkmanager)) {
-        print_fail("sdkmanager nao encontrado.");
+        print_fail("sdkmanager nao encontrado: " + sdkmanager);
         return false;
     }
 
-    // Setar JAVA_HOME
-#ifdef _WIN32
-    _putenv_s("JAVA_HOME", java_home.c_str());
-#else
-    setenv("JAVA_HOME", java_home.c_str(), 1);
-#endif
-
-    // Aceitar licencas automaticamente
-    std::string cmd;
-#ifdef _WIN32
-    cmd = "echo y | \"" + sdkmanager + "\" --sdk_root=\"" + sdk_dir + "\" \"" + component + "\"";
-#else
-    cmd = "yes | \"" + sdkmanager + "\" --sdk_root=\"" + sdk_dir + "\" \"" + component + "\"";
-#endif
+    std::string cmd = sdkmanager + " --sdk_root=" + sdk_dir + " " + component;
 
     int ret = run_cmd(cmd);
     if (ret != 0) {
@@ -375,6 +398,42 @@ static bool install_sdk_component(const std::string& base, const std::string& ja
 
     print_ok(component + " instalado.");
     return true;
+}
+
+// ============================================================================
+// INSTALAR JDK (OpenJDK Microsoft 17)
+// ============================================================================
+
+static bool install_jdk(const std::string& base) {
+    print_info("Instalando OpenJDK 17 (Microsoft Build)...");
+    print_info("(~170 MB)");
+
+    std::string zip_path = base + "/" + SetupConfig::JDK_ZIP;
+    std::string jdk_dir = base + "/jdk";
+
+    fs::create_directories(jdk_dir);
+
+    if (!download_file(SetupConfig::JDK_URL, zip_path)) return false;
+    if (!extract_zip(zip_path, jdk_dir)) return false;
+
+    fs::remove(zip_path);
+
+    // Verificar — o zip extrai como jdk-17.0.XX+YY dentro de jdk/
+    for (auto& entry : fs::directory_iterator(jdk_dir)) {
+        if (entry.is_directory()) {
+#ifdef _WIN32
+            if (fs::exists(entry.path() / "bin" / "javac.exe")) {
+#else
+            if (fs::exists(entry.path() / "bin" / "javac")) {
+#endif
+                print_ok("JDK instalado: " + entry.path().filename().string());
+                return true;
+            }
+        }
+    }
+
+    print_fail("JDK extraido mas javac nao encontrado.");
+    return false;
 }
 
 // ============================================================================
@@ -388,23 +447,21 @@ static bool install_emulator(const std::string& base, const std::string& java_ho
     // Criar AVD
     print_info("Criando AVD 'teste_jp'...");
 
-    std::string sdk_dir = base + "/sdk";
-    std::string avdmanager;
-#ifdef _WIN32
-    avdmanager = sdk_dir + "/cmdline-tools/latest/bin/avdmanager.bat";
-#else
-    avdmanager = sdk_dir + "/cmdline-tools/latest/bin/avdmanager";
-#endif
+    std::string sdk_dir = fs::path(base + "/sdk").make_preferred().string();
 
 #ifdef _WIN32
     _putenv_s("JAVA_HOME", java_home.c_str());
-#else
-    setenv("JAVA_HOME", java_home.c_str(), 1);
-#endif
-
+    std::string avdmanager = sdk_dir + "\\cmdline-tools\\latest\\bin\\avdmanager.bat";
     std::string cmd = "echo no | \"" + avdmanager + "\" create avd"
                       " -n teste_jp -k \"system-images;android-30;google_apis;x86_64\""
                       " --force";
+#else
+    setenv("JAVA_HOME", java_home.c_str(), 1);
+    std::string avdmanager = sdk_dir + "/cmdline-tools/latest/bin/avdmanager";
+    std::string cmd = "echo no | \"" + avdmanager + "\" create avd"
+                      " -n teste_jp -k \"system-images;android-30;google_apis;x86_64\""
+                      " --force";
+#endif
     run_cmd(cmd);
 
     print_ok("Emulador configurado.");
@@ -455,24 +512,25 @@ int main(int argc, char* argv[]) {
 
     if (check_only) return 0;
 
-    // Verificar JDK (pre-requisito — ja deve estar no repo)
+    // Instalar componentes faltantes
+    int installed = 0;
+    int failed = 0;
+
+    // 0. JDK (pre-requisito pra tudo que usa sdkmanager)
     if (!status.jdk) {
-        print_fail("JDK nao encontrado em " + base + "/jdk/");
-        print_fail("O OpenJDK 17 deve estar incluido no repositorio.");
-        print_fail("Baixe de: https://learn.microsoft.com/en-us/java/openjdk/download");
-        return 1;
+        if (install_jdk(base)) installed++; else { failed++; }
+    } else {
+        print_skip("JDK ja instalado.");
     }
 
     std::string java_home = find_java(base);
     if (java_home.empty()) {
-        print_fail("Nao foi possivel encontrar o JDK.");
+        print_fail("JDK nao disponivel. Nao eh possivel continuar.");
         return 1;
     }
+    // Normalizar path pra barras nativas (sdkmanager.bat exige backslash no Windows)
+    java_home = fs::path(java_home).make_preferred().string();
     print_ok("JDK encontrado: " + java_home);
-
-    // Instalar componentes faltantes
-    int installed = 0;
-    int failed = 0;
 
     // 1. NDK
     if (!status.ndk) {
@@ -490,6 +548,11 @@ int main(int argc, char* argv[]) {
 
     // Reler status apos instalar cmdline-tools
     status = check_components(base);
+
+    // Aceitar licencas do SDK (necessario antes de instalar componentes)
+    if (!status.build_tools || !status.platform || !status.platform_tools || !status.emulator) {
+        accept_licenses(base, java_home);
+    }
 
     // 3. Build Tools
     if (!status.build_tools) {
