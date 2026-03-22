@@ -1,0 +1,10 @@
+html = """<html>
+<body style="background:#fff;color:#000;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif">
+<h1>JP Lang</h1>
+</body>
+</html>"""
+
+graf_html(html)
+
+funcao graf_evento(evento, dado):
+    retorna "ok"
