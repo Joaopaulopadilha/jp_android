@@ -30,7 +30,7 @@
     #include <wininet.h>
     #pragma comment(lib, "wininet.lib")
 #else
-    // Linux usa curl
+    #include <unistd.h>
 #endif
 
 namespace fs = std::filesystem;
@@ -364,23 +364,26 @@ static bool install_cmdline_tools(const std::string& base) {
 
 static bool accept_licenses(const std::string& base, const std::string& java_home) {
     std::string sdk_dir = fs::path(base + "/sdk").make_preferred().string();
+    std::string cmd;
 
 #ifdef _WIN32
     _putenv_s("JAVA_HOME", java_home.c_str());
     std::string sdkmanager = sdk_dir + "\\cmdline-tools\\latest\\bin\\sdkmanager.bat";
 
-    // Criar script temporario que envia y repetidamente
     std::string bat_path = base + "\\__accept_licenses.bat";
     std::ofstream bat(bat_path);
     bat << "@echo off\n";
     bat << "for /L %%i in (1,1,20) do echo y\n";
     bat.close();
 
-    std::string cmd = bat_path + " | " + sdkmanager + " --sdk_root=" + sdk_dir + " --licenses";
+    cmd = bat_path + " | " + sdkmanager + " --sdk_root=" + sdk_dir + " --licenses";
 #else
-    setenv("JAVA_HOME", java_home.c_str(), 1);
-    std::string sdkmanager = sdk_dir + "/cmdline-tools/latest/bin/sdkmanager";
-    std::string cmd = "yes | " + sdkmanager + " --sdk_root=" + sdk_dir + " --licenses";
+    std::string java_bin = java_home + "/bin/java";
+    std::string sdk_jar = sdk_dir + "/cmdline-tools/latest/lib/sdkmanager-classpath.jar";
+
+    cmd = "yes | \"" + java_bin + "\" -cp \"" + sdk_jar + "\""
+          " com.android.sdklib.tool.sdkmanager.SdkManagerCli"
+          " --sdk_root=\"" + sdk_dir + "\" --licenses";
 #endif
 
     print_info("Aceitando licencas do Android SDK...");
@@ -397,21 +400,31 @@ static bool install_sdk_component(const std::string& base, const std::string& ja
     print_info("Instalando " + component + "...");
 
     std::string sdk_dir = fs::path(base + "/sdk").make_preferred().string();
+    std::string cmd;
 
 #ifdef _WIN32
     _putenv_s("JAVA_HOME", java_home.c_str());
     std::string sdkmanager = sdk_dir + "\\cmdline-tools\\latest\\bin\\sdkmanager.bat";
-#else
-    setenv("JAVA_HOME", java_home.c_str(), 1);
-    std::string sdkmanager = sdk_dir + "/cmdline-tools/latest/bin/sdkmanager";
-#endif
 
     if (!fs::exists(sdkmanager)) {
         print_fail("sdkmanager nao encontrado: " + sdkmanager);
         return false;
     }
 
-    std::string cmd = sdkmanager + " --sdk_root=" + sdk_dir + " " + component;
+    cmd = "\"" + sdkmanager + "\" --sdk_root=\"" + sdk_dir + "\" \"" + component + "\"";
+#else
+    std::string java_bin = java_home + "/bin/java";
+    std::string sdk_jar = sdk_dir + "/cmdline-tools/latest/lib/sdkmanager-classpath.jar";
+
+    if (!fs::exists(sdk_jar)) {
+        print_fail("sdkmanager jar nao encontrado: " + sdk_jar);
+        return false;
+    }
+
+    cmd = "\"" + java_bin + "\" -cp \"" + sdk_jar + "\""
+          " com.android.sdklib.tool.sdkmanager.SdkManagerCli"
+          " --sdk_root=\"" + sdk_dir + "\" '" + component + "'";
+#endif
 
     int ret = run_cmd(cmd);
     if (ret != 0) {
@@ -471,21 +484,48 @@ static bool install_emulator(const std::string& base, const std::string& java_ho
     print_info("Criando AVD 'teste_jp'...");
 
     std::string sdk_dir = fs::path(base + "/sdk").make_preferred().string();
+    std::string cmd;
 
 #ifdef _WIN32
     _putenv_s("JAVA_HOME", java_home.c_str());
     std::string avdmanager = sdk_dir + "\\cmdline-tools\\latest\\bin\\avdmanager.bat";
-    std::string cmd = "echo no | \"" + avdmanager + "\" create avd"
-                      " -n teste_jp -k \"system-images;android-30;google_apis;x86_64\""
-                      " --force";
+    cmd = "echo no | \"" + avdmanager + "\" create avd"
+          " -n teste_jp -k \"system-images;android-30;google_apis;x86_64\""
+          " --force";
 #else
-    setenv("JAVA_HOME", java_home.c_str(), 1);
-    std::string avdmanager = sdk_dir + "/cmdline-tools/latest/bin/avdmanager";
-    std::string cmd = "echo no | \"" + avdmanager + "\" create avd"
-                      " -n teste_jp -k \"system-images;android-30;google_apis;x86_64\""
-                      " --force";
+    // No Linux, replicar exatamente o que o script bin/avdmanager faz:
+    // 1. APP_HOME = cmdline-tools/latest (diretorio pai de bin/)
+    // 2. CLASSPATH = APP_HOME/lib/avdmanager-classpath.jar
+    // 3. -Dcom.android.sdkmanager.toolsdir=$APP_HOME  (note: sdkmanager, nao sdklib)
+    // 4. java -classpath $CLASSPATH com.android.sdklib.tool.AvdManagerCli
+
+    std::string java_bin = java_home + "/bin/java";
+    std::string app_home = sdk_dir + "/cmdline-tools/latest";
+    std::string avd_cp = app_home + "/lib/avdmanager-classpath.jar";
+
+    if (!fs::exists(avd_cp)) {
+        print_fail("avdmanager-classpath.jar nao encontrado: " + avd_cp);
+        return false;
+    }
+
+    // Setar variaveis de ambiente
+    setenv("ANDROID_HOME", sdk_dir.c_str(), 1);
+    setenv("ANDROID_SDK_ROOT", sdk_dir.c_str(), 1);
+
+    cmd = "echo no | " + java_bin
+          + " '-Dcom.android.sdkmanager.toolsdir=" + app_home + "'"
+          + " -classpath " + avd_cp
+          + " com.android.sdklib.tool.AvdManagerCli"
+          + " create avd -n teste_jp"
+          + " -k 'system-images;android-30;google_apis;x86_64'"
+          + " --force";
 #endif
-    run_cmd(cmd);
+
+    int avd_ret = run_cmd(cmd);
+    if (avd_ret != 0) {
+        print_fail("Falha ao criar AVD 'teste_jp' (codigo " + std::to_string(avd_ret) + ")");
+        return false;
+    }
 
     print_ok("Emulador configurado.");
     return true;
@@ -553,7 +593,36 @@ int main(int argc, char* argv[]) {
     }
     // Normalizar path pra barras nativas (sdkmanager.bat exige backslash no Windows)
     java_home = fs::path(java_home).make_preferred().string();
+
+#ifndef _WIN32
+    // No Linux, se o path tem espacos, o sdkmanager quebra.
+    // Criar symlink temporario sem espacos.
+    if (java_home.find(' ') != std::string::npos) {
+        std::string link_path = "/tmp/jplang_jdk";
+        fs::remove_all(link_path);
+        fs::create_directory_symlink(java_home, link_path);
+        java_home = link_path;
+        print_info("Symlink criado: " + link_path + " -> JDK (path com espacos)");
+    }
+#endif
+
     print_ok("JDK encontrado: " + java_home);
+
+#ifndef _WIN32
+    // Mesma coisa pro SDK — sdkmanager nao aceita espacos no --sdk_root
+    std::string base_for_sdk = base;
+    if (base.find(' ') != std::string::npos) {
+        std::string link_base = "/tmp/jplang_android";
+        fs::remove_all(link_base);
+        fs::create_directory_symlink(base, link_base);
+        base_for_sdk = link_base;
+        print_info("Symlink criado: " + link_base + " -> base (path com espacos)");
+    }
+    // Usar base_for_sdk pras chamadas do sdkmanager
+    #define SETUP_BASE base_for_sdk
+#else
+    #define SETUP_BASE base
+#endif
 
     // 1. NDK
     if (!status.ndk) {
@@ -574,12 +643,12 @@ int main(int argc, char* argv[]) {
 
     // Aceitar licencas do SDK (necessario antes de instalar componentes)
     if (!status.build_tools || !status.platform || !status.platform_tools || !status.emulator) {
-        accept_licenses(base, java_home);
+        accept_licenses(SETUP_BASE, java_home);
     }
 
     // 3. Build Tools
     if (!status.build_tools) {
-        if (install_sdk_component(base, java_home, "build-tools;30.0.3"))
+        if (install_sdk_component(SETUP_BASE, java_home, "build-tools;30.0.3"))
             installed++; else failed++;
     } else {
         print_skip("Build Tools ja instaladas.");
@@ -587,7 +656,7 @@ int main(int argc, char* argv[]) {
 
     // 4. Platform
     if (!status.platform) {
-        if (install_sdk_component(base, java_home, "platforms;android-30"))
+        if (install_sdk_component(SETUP_BASE, java_home, "platforms;android-30"))
             installed++; else failed++;
     } else {
         print_skip("Platform android-30 ja instalada.");
@@ -595,7 +664,7 @@ int main(int argc, char* argv[]) {
 
     // 5. Platform Tools (adb)
     if (!status.platform_tools) {
-        if (install_sdk_component(base, java_home, "platform-tools"))
+        if (install_sdk_component(SETUP_BASE, java_home, "platform-tools"))
             installed++; else failed++;
     } else {
         print_skip("Platform Tools (adb) ja instaladas.");
@@ -603,7 +672,7 @@ int main(int argc, char* argv[]) {
 
     // 6. Emulador
     if (!status.emulator) {
-        if (install_emulator(base, java_home)) installed++; else failed++;
+        if (install_emulator(SETUP_BASE, java_home)) installed++; else failed++;
     } else {
         print_skip("Emulador ja instalado.");
     }

@@ -14,5 +14,5 @@ essa é uma biblioteca da minha linguagem, use ela como exemplo para elaboracao
 
 cd G:\jp_android
 git add .
-git commit -m "Adicionar instalador automatico de dependencias (setup.cpp)"
+git commit -m "Adicionado suporte a linux"
 git push

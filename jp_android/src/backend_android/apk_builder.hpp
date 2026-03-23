@@ -338,25 +338,53 @@ static bool build_apk(const ApkBuildConfig& cfg, const ApkToolchain& tc,
     setenv("JAVA_HOME", java_home.c_str(), 1);
 #endif
 
-    // Converter caminhos pra absolutos (d8 pode ter problemas com relativos)
+    // Converter caminhos pra absolutos
     std::string abs_platform = fs::absolute(tc.platform_jar).string();
     std::string abs_apk_dir = fs::absolute(work + "/apk").string();
+    std::string abs_class_dir = fs::absolute(work + "/classes").string();
 
-    // Coletar todos os .class
-    std::string class_files;
-    std::string class_dir = work + "/classes/com/jplang/app";
-    for (auto& entry : fs::directory_iterator(class_dir)) {
+    // Verificar se existem .class
+    std::string class_subdir = work + "/classes/com/jplang/app";
+    bool has_classes = false;
+    for (auto& entry : fs::directory_iterator(class_subdir)) {
         if (entry.path().extension() == ".class") {
-            class_files += " \"" + fs::absolute(entry.path()).string() + "\"";
+            has_classes = true;
+            break;
         }
     }
 
-    // Chamar d8 via java diretamente (d8.bat nao funciona sem find_java.bat)
+    if (!has_classes) {
+        std::cerr << "Erro: Nenhum .class encontrado." << std::endl;
+        return false;
+    }
+
+    // Empacotar .class em .jar pra evitar bug do d8 com paths individuais
+    // (d8 de build-tools 30.0.3 reporta "defined multiple times" com .class soltos)
+    std::string jar_for_d8;
+#ifdef _WIN32
+    jar_for_d8 = fs::path(tc.javac).parent_path().string() + "/jar.exe";
+#else
+    jar_for_d8 = fs::path(tc.javac).parent_path().string() + "/jar";
+#endif
+
+    std::string classes_jar = work + "/classes_temp.jar";
+    std::string saved_cwd = fs::current_path().string();
+    fs::current_path(abs_class_dir);
+
+    cmd = "\"" + jar_for_d8 + "\" cf \"" + fs::absolute(classes_jar).string() + "\" .";
+    if (run_cmd(cmd) != 0) {
+        fs::current_path(saved_cwd);
+        std::cerr << "Erro: Falha ao criar JAR temporario." << std::endl;
+        return false;
+    }
+    fs::current_path(saved_cwd);
+
+    // Passar o .jar pro d8
     cmd = "\"" + tc.java + "\" -cp \"" + tc.d8_jar + "\""
           " com.android.tools.r8.D8"
           " --lib \"" + abs_platform + "\""
           " --output \"" + abs_apk_dir + "\""
-          + class_files;
+          " \"" + fs::absolute(classes_jar).string() + "\"";
 
     if (run_cmd(cmd) != 0) {
         std::cerr << "Erro: d8 (DEX) falhou." << std::endl;
