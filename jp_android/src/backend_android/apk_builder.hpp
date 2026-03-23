@@ -66,7 +66,12 @@ static int run_cmd(const std::string& cmd, bool show_output = false) {
     if (show_output) {
         std::cout << "  > " << cmd << std::endl;
     }
+#ifdef _WIN32
+    // Windows system() precisa de aspas extras pra paths com espacos
     return std::system(("\"" + cmd + "\"").c_str());
+#else
+    return std::system(cmd.c_str());
+#endif
 }
 
 static bool write_file(const std::string& path, const std::string& content) {

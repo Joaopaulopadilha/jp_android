@@ -40,23 +40,38 @@ namespace fs = std::filesystem;
 // ============================================================================
 
 struct SetupConfig {
-    std::string base_dir;   // diretorio raiz (onde esta o setup.exe)
-    std::string jdk_bin;    // caminho do java/javac
-    std::string sdkmanager; // caminho do sdkmanager
+    std::string base_dir;
+    std::string jdk_bin;
+    std::string sdkmanager;
 
-    // URLs de download
+    // URLs de download — separadas por plataforma
+#ifdef _WIN32
     static constexpr const char* NDK_URL =
         "https://dl.google.com/android/repository/android-ndk-r27d-windows.zip";
-    static constexpr const char* NDK_ZIP = "android-ndk-r27d-windows.zip";
-    static constexpr const char* NDK_DIR = "android-ndk-r27d";
+    static constexpr const char* NDK_FILE = "android-ndk-r27d-windows.zip";
 
     static constexpr const char* CMDLINE_TOOLS_URL =
         "https://dl.google.com/android/repository/commandlinetools-win-11076708_latest.zip";
-    static constexpr const char* CMDLINE_TOOLS_ZIP = "commandlinetools.zip";
+    static constexpr const char* CMDLINE_TOOLS_FILE = "commandlinetools.zip";
 
     static constexpr const char* JDK_URL =
         "https://aka.ms/download-jdk/microsoft-jdk-17-windows-x64.zip";
-    static constexpr const char* JDK_ZIP = "microsoft-jdk-17.zip";
+    static constexpr const char* JDK_FILE = "microsoft-jdk-17.zip";
+#else
+    static constexpr const char* NDK_URL =
+        "https://dl.google.com/android/repository/android-ndk-r27d-linux.zip";
+    static constexpr const char* NDK_FILE = "android-ndk-r27d-linux.zip";
+
+    static constexpr const char* CMDLINE_TOOLS_URL =
+        "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip";
+    static constexpr const char* CMDLINE_TOOLS_FILE = "commandlinetools.zip";
+
+    static constexpr const char* JDK_URL =
+        "https://aka.ms/download-jdk/microsoft-jdk-17-linux-x64.tar.gz";
+    static constexpr const char* JDK_FILE = "microsoft-jdk-17.tar.gz";
+#endif
+
+    static constexpr const char* NDK_DIR = "android-ndk-r27d";
 };
 
 // ============================================================================
@@ -155,23 +170,31 @@ static bool download_file(const std::string& url, const std::string& dest) {
 #endif
 
 // ============================================================================
-// EXTRAIR ZIP (via PowerShell no Windows, unzip no Linux)
+// EXTRAIR ARQUIVO (zip ou tar.gz)
 // ============================================================================
 
-static bool extract_zip(const std::string& zip_path, const std::string& dest_dir) {
-    print_info("Extraindo: " + zip_path);
+static bool extract_archive(const std::string& file_path, const std::string& dest_dir) {
+    print_info("Extraindo: " + file_path);
     fs::create_directories(dest_dir);
 
+    std::string cmd;
+
 #ifdef _WIN32
-    std::string cmd = "powershell -NoProfile -Command \"Expand-Archive -Path '"
-                      + zip_path + "' -DestinationPath '" + dest_dir + "' -Force\"";
+    cmd = "powershell -NoProfile -Command \"Expand-Archive -Path '"
+          + file_path + "' -DestinationPath '" + dest_dir + "' -Force\"";
 #else
-    std::string cmd = "unzip -o -q \"" + zip_path + "\" -d \"" + dest_dir + "\"";
+    // Detectar se é .tar.gz ou .zip
+    if (file_path.find(".tar.gz") != std::string::npos ||
+        file_path.find(".tgz") != std::string::npos) {
+        cmd = "tar xzf \"" + file_path + "\" -C \"" + dest_dir + "\"";
+    } else {
+        cmd = "unzip -o -q \"" + file_path + "\" -d \"" + dest_dir + "\"";
+    }
 #endif
 
     int ret = std::system(cmd.c_str());
     if (ret != 0) {
-        print_fail("Erro ao extrair " + zip_path);
+        print_fail("Erro ao extrair " + file_path);
         return false;
     }
     return true;
@@ -279,11 +302,11 @@ static bool install_ndk(const std::string& base) {
     print_info("Instalando Android NDK r27d...");
     print_info("(~2.2 GB — pode demorar alguns minutos)");
 
-    std::string zip_path = base + "/" + SetupConfig::NDK_ZIP;
+    std::string zip_path = base + "/" + SetupConfig::NDK_FILE;
     std::string ndk_dir = base + "/ndk";
 
     if (!download_file(SetupConfig::NDK_URL, zip_path)) return false;
-    if (!extract_zip(zip_path, ndk_dir)) return false;
+    if (!extract_archive(zip_path, ndk_dir)) return false;
 
     // Remover zip
     fs::remove(zip_path);
@@ -305,7 +328,7 @@ static bool install_ndk(const std::string& base) {
 static bool install_cmdline_tools(const std::string& base) {
     print_info("Instalando SDK Command-line Tools...");
 
-    std::string zip_path = base + "/" + SetupConfig::CMDLINE_TOOLS_ZIP;
+    std::string zip_path = base + "/" + SetupConfig::CMDLINE_TOOLS_FILE;
     std::string sdk_dir = base + "/sdk";
     std::string dest = sdk_dir + "/cmdline-tools/latest";
 
@@ -315,7 +338,7 @@ static bool install_cmdline_tools(const std::string& base) {
 
     // Extrair pra temp
     std::string temp_dir = base + "/_cmdline_temp";
-    if (!extract_zip(zip_path, temp_dir)) return false;
+    if (!extract_archive(zip_path, temp_dir)) return false;
     fs::remove(zip_path);
 
     // Mover conteudo de cmdline-tools/ pra latest/
@@ -408,13 +431,13 @@ static bool install_jdk(const std::string& base) {
     print_info("Instalando OpenJDK 17 (Microsoft Build)...");
     print_info("(~170 MB)");
 
-    std::string zip_path = base + "/" + SetupConfig::JDK_ZIP;
+    std::string zip_path = base + "/" + SetupConfig::JDK_FILE;
     std::string jdk_dir = base + "/jdk";
 
     fs::create_directories(jdk_dir);
 
     if (!download_file(SetupConfig::JDK_URL, zip_path)) return false;
-    if (!extract_zip(zip_path, jdk_dir)) return false;
+    if (!extract_archive(zip_path, jdk_dir)) return false;
 
     fs::remove(zip_path);
 
