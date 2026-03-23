@@ -205,7 +205,15 @@ static bool extract_archive(const std::string& file_path, const std::string& des
 // ============================================================================
 
 static int run_cmd(const std::string& cmd) {
+#ifdef _WIN32
+    // No Windows, system() chama cmd.exe /c <string>
+    // Se a string começa com ", cmd.exe remove o primeiro e ultimo " como par,
+    // quebrando paths com aspas. Envolver com aspas externas resolve isso.
+    std::string wrapped = "\"" + cmd + "\"";
+    return std::system(wrapped.c_str());
+#else
     return std::system(cmd.c_str());
+#endif
 }
 
 // ============================================================================
